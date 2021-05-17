@@ -1,9 +1,14 @@
+import csv
+from datetime import date
+
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse
+
+from rest_framework import viewsets, permissions, views, filters
+from rest_framework.exceptions import APIException
 
 from .models import Book, IssueLog, IssueRequest
 from .serializers import BookSerializer, BookIssueRequestSerializer, BookIssueLogSerializer
-from rest_framework import viewsets, permissions, views, filters
-from rest_framework.exceptions import APIException
 
 
 class BookViewSet(viewsets.ModelViewSet):
@@ -88,3 +93,39 @@ class BookIssueLogViewSet(viewsets.ModelViewSet):
                                "Possible Reasons : "
                                "1. Either Book is not available. "
                                "2. Book is already issued to user.")
+
+
+class IssueLogExportAsCSV(views.APIView):
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = BookIssueLogSerializer
+
+    def get_serializer(self, queryset, many=True):
+        return self.serializer_class(queryset, many=many)
+
+    def get(self, request):
+        start = self.request.query_params.get('start_date', date.today())
+        end = self.request.query_params.get('end_date', date.today())
+        type_of_data = self.request.query_params.get('type', 'issued')
+
+        if type_of_data == 'issued':
+            issue_log_qs = IssueLog.objects.filter(issued_date__range=[start, end])
+        elif type_of_data == 'deposited':
+            issue_log_qs = IssueLog.objects.filter(deposit_date__range=[start, end])
+        elif type_of_data == 'delayed':
+            issue_log_qs = IssueLog.objects.filter(due_date__range=[start, end], penalty__gt=0)
+        else:
+            issue_log_qs = IssueLog.objects.filter(issued_date__range=[start, end])
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="export.csv"'
+        serializer = self.get_serializer(
+            issue_log_qs,
+            many=True
+        )
+        header = BookIssueLogSerializer.Meta.fields
+        writer = csv.DictWriter(response, fieldnames=header)
+        writer.writeheader()
+        for row in serializer.data:
+            writer.writerow(row)
+
+        return response
