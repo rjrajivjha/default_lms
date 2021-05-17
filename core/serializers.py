@@ -19,5 +19,5 @@ class BookIssueLogSerializer(serializers.ModelSerializer):
 class BookIssueRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = IssueRequest
-        fields = ['requestor', 'book', 'request_status', 'request_date']
+        fields = ['requester', 'book', 'request_status', 'request_date']
         read_only_fields = ('id',)
