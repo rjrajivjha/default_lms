@@ -122,3 +122,12 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 AUTH_USER_MODEL = 'core.User'
+
+MAIL_HOST = 'email-smtp.your.email.host.com'
+EMAIL_PORT = 465
+EMAIL_HOST_USER = 'your.host.username'
+EMAIL_HOST_PASSWORD = 'password'
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = True
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+MAILER_EMAIL_BACKEND = EMAIL_BACKEND

@@ -1,6 +1,10 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.core.mail import send_mail
+
 from .utils import get_due_date
 
 
@@ -75,6 +79,26 @@ class IssueRequest(models.Model):
     objects = models.Manager()
 
 
+@receiver(post_save, sender=IssueRequest)
+def send_book_issue_request_notification_email(sender, instance, created, **kwargs):
+
+    if created:
+        book = Book.objects.get(pk=instance.book.pk)
+        user = User.objects.get(pk=instance.requester.pk)
+        request_date = instance.request_date
+        email = user.email
+        subject = f'Book : Issue Request: {book} has been requested. '
+        message = f'Book : {book} has been requested to issue by {user} on {request_date}. \n Thanks!'
+
+        send_mail(
+            subject,
+            message,
+            email,
+            ['jharjrajiv@gmail.com'],
+            fail_silently=False
+        )
+
+
 class IssueLog(models.Model):
     book = models.ForeignKey(Book, on_delete=models.DO_NOTHING, blank=False)
     borrower = models.ForeignKey(User, on_delete=models.DO_NOTHING, blank=False)
@@ -87,3 +111,24 @@ class IssueLog(models.Model):
 
     def __str__(self):
         return(f'{self.borrower} Has Book Titled : {self.book}, issued on :{self.issued_date} and Due on :{self.due_date}')
+
+
+@receiver(post_save, sender=IssueLog)
+def send_book_issue_notification_email(sender, instance, created, **kwargs):
+
+    if created:
+        book = Book.objects.get(pk=instance.book.pk)
+        borrower = User.objects.get(pk=instance.borrower.pk)
+        issued_date = instance.issued_date
+        due_date = instance.due_date
+
+        subject = f'Book : {book} has been issued to {borrower}. Thanks!'
+        message = f'Book : {book} has been issued on {issued_date} due on {due_date}. \n Thanks!'
+
+        send_mail(
+            subject,
+            message,
+            'jharjrajiv@gmail.com',
+            [borrower.email],
+            fail_silently=False
+        )
